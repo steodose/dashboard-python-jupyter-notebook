@@ -1,7 +1,7 @@
-import streamlit
-import pandas 
-import numpy
-import matplotlib.pyplot
-import yfinance
-import mplfinance
-import base64
+streamlit
+pandas 
+numpy
+matplotlib.pyplot
+yfinance
+mplfinance
+base64
