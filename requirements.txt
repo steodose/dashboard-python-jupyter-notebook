@@ -4,4 +4,3 @@ numpy
 matplotlib
 yfinance
 mplfinance
-base64
