@@ -1,7 +1,7 @@
 streamlit
 pandas 
 numpy
-matplotlib.pyplot
+matplotlib
 yfinance
 mplfinance
 base64
