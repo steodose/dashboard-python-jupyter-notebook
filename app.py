@@ -12,9 +12,10 @@ st.set_page_config(page_title="S&P 500 App", page_icon=":bar_chart:")
 # ---- MAINPAGE ----
 st.title(":bar_chart: S&P 500 App")
 st.markdown("""
-This app retrieves stock price information for any company in the **S&P 500**. A **Between The Pipes** app by Stephan Teodosescu.
+This app retrieves stock price information for any company in the S&P 500 Index. A **Between The Pipes** app by Stephan Teodosescu.
 """)
 
+"---"
 
 st.sidebar.header('Filters')
 
@@ -33,13 +34,41 @@ sector = df.groupby('GICS Sector')
 
 # ---- Sidebar ----
 
+# Stock selection
+sorted_stock_unique = sorted( df['Symbol'].unique() )
+selected_stock = st.sidebar.selectbox('Stock', sorted_stock_unique)
+
 # Sector selection
 sorted_sector_unique = sorted( df['GICS Sector'].unique() )
 selected_sector = st.sidebar.multiselect('Sector', sorted_sector_unique, sorted_sector_unique)
 
-# Stock selection
-sorted_stock_unique = sorted( df['Symbol'].unique() )
-selected_stock = st.sidebar.selectbox('Stock', sorted_stock_unique)
+
+
+# ---- Individual Stock Plots ----
+st.header('Individual Stocks')
+st.text('Stock performance for the past 6 months shown.')
+
+history = yf.Ticker(selected_stock).history(period="6mo")
+
+col1, col2 = st.columns(2)
+col1.metric("Close", history['Close'].tail(1).apply(lambda x: float("{:.2f}".format(x)), "+5%"))
+col2.metric("Open", history['Open'].tail(1), "-8%")
+
+df.max()
+
+ticker = selected_stock
+
+st.write(f"Selected ticker: {selected_stock}")
+
+# selected stock table
+#st.write(history.tail(10)) #last 10 days
+st.write(history) #last 10 days
+st.caption('Note: you can copy and paste cells from the above table into your favorite spreadsheet software.')
+
+# stock plot
+mpf.plot(history, type='candle', mav=(7),figratio=(18,10))
+
+"---"
 
 # Filtering data
 df_selected_sector = df[ (df['GICS Sector'].isin(selected_sector)) ]
@@ -94,23 +123,4 @@ if st.button('Show Plots'):
     for i in list(df_selected_sector.Symbol)[:num_company]:
         price_plot(i)
 
-
-"---"
-
-# Individual stock plots
-st.header('Individual Stocks')
-st.text('Stock performance for the past 6 months shown.')
-
-ticker = selected_stock
-
-st.write(f"Selected ticker: {selected_stock}")
-
-history = yf.Ticker(selected_stock).history(period="6mo")
-
-# selected stock table
-#st.write(history.tail(10)) #last 10 days
-st.write(history) #last 10 days
-
-# stock ploy
-mpf.plot(history, type='candle', mav=(7),figratio=(18,10))
 
