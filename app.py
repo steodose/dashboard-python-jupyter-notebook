@@ -39,7 +39,7 @@ sorted_stock_unique = sorted( df['Symbol'].unique() )
 selected_stock = st.sidebar.selectbox('Stock', sorted_stock_unique)
 
 # Period selection
-selected_period = st.sidebar.radio('Select Period', ('3mo', '6mo', '1y','2y', '5y', '10y', 'Max'))
+selected_period = st.sidebar.radio('Select Period', ('1mo','3mo', '6mo', '1y', '5y', '10y', 'YTD','Max'))
 
 # Sector selection
 sorted_sector_unique = sorted( df['GICS Sector'].unique() )
@@ -53,15 +53,16 @@ st.text('Stock performance over given period selected on the left.')
 
 history = yf.Ticker(selected_stock).history(period=selected_period)
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 col1.metric("Close", history['Close'].tail(1).apply(lambda x: float("{:.2f}".format(x)), "+5%"))
-col2.metric("Open", history['Open'].tail(1), "-8%")
+col2.metric("Daily Change", history['Close'].tail(1) - history['Open'].tail(1), "-8%")
+col3.metric("YTD", value = 123, delta = "+5%")
 
 df.max()
 
 ticker = selected_stock
 
-st.write(f"Selected ticker: {selected_stock}")
+st.write(f"Selected ticker: **{selected_stock}**")
 
 # selected stock table
 #st.write(history.tail(10)) #last 10 days
@@ -73,7 +74,7 @@ mpf.plot(history, type='candle', mav=(7),figratio=(18,10))
 
 "---"
 
-# Filtering data
+# Filtering data for selected section
 df_selected_sector = df[ (df['GICS Sector'].isin(selected_sector)) ]
 
 st.header('Sector Analysis')
@@ -98,7 +99,7 @@ st.markdown(filedownload(df_selected_sector), unsafe_allow_html=True)
 
 data = yf.download(
         tickers = list(df_selected_sector[:5].Symbol),
-        period = "ytd",
+        period = selected_period,
         interval = "1d",
         group_by = 'ticker',
         auto_adjust = True,
@@ -108,12 +109,15 @@ data = yf.download(
     )
 
 # Plot Closing Price of Query Symbol
+
+plt.style.use('fivethirtyeight')
+
 def price_plot(symbol):
   df = pd.DataFrame(data[symbol].Close)
   df['Date'] = df.index
   fig = plt.figure()
-  plt.fill_between(df.Date, df.Close, color='skyblue', alpha=0.3)
-  plt.plot(df.Date, df.Close, color='skyblue', alpha=0.8)
+  plt.fill_between(df.Date, df.Close, color='#00F43C', alpha=0.3)
+  plt.plot(df.Date, df.Close, color='#00F43C', alpha=0.8)
   plt.xticks(rotation=90)
   plt.title(symbol, fontweight='bold')
   plt.xlabel('Date', fontweight='bold')
