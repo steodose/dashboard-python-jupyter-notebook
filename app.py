@@ -49,7 +49,8 @@ selected_sector = st.sidebar.multiselect('Sector', sorted_sector_unique, sorted_
 
 # ---- Individual Stock Plots ----
 st.header('Individual Stocks')
-st.text('Stock performance over given period selected on the left.')
+
+st.write(f"Selected ticker: **{selected_stock}**")
 
 history = yf.Ticker(selected_stock).history(period=selected_period)
 
@@ -58,19 +59,22 @@ col1.metric("Close", history['Close'].tail(1).apply(lambda x: float("{:.2f}".for
 col2.metric("Daily Change", history['Close'].tail(1) - history['Open'].tail(1), "-8%")
 col3.metric("YTD", value = 123, delta = "+5%")
 
-df.max()
+#df.max()
+
+tab1, tab2 = st.tabs(["📈 Chart", "🗃 Data"])
 
 ticker = selected_stock
 
-st.write(f"Selected ticker: **{selected_stock}**")
+# stock plot
+tab1.subheader("Stock Chart")
+st.text('Stock performance over given period selected on the left.')
+mpf.plot(history, type='candle', mav=(7),figratio=(18,10))
 
 # selected stock table
-#st.write(history.tail(10)) #last 10 days
+tab2.subheader("Data Table")
 st.write(history) #last 10 days
 st.caption('Pro Tip: you can copy and paste cells from the above table into your favorite spreadsheet software.')
 
-# stock plot
-mpf.plot(history, type='candle', mav=(7),figratio=(18,10))
 
 "---"
 
