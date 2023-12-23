@@ -4,3 +4,5 @@ numpy
 matplotlib
 yfinance
 mplfinance
+streamlit_extras
+plotly

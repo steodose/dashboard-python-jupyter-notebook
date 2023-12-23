@@ -4,7 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import yfinance as yf
 import mplfinance as mpf
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import base64
+from streamlit_extras.metric_cards import style_metric_cards
 
 # emojis: https://www.webfx.com/tools/emoji-cheat-sheet/
 st.set_page_config(page_title="S&P 500 App", page_icon=":bar_chart:")
@@ -19,9 +22,9 @@ This app retrieves stock price information for any company in the S&P 500 Index.
 
 st.sidebar.header('Filters')
 
-# Web scraping of S&P 500 data
+# ---- Web scraping of S&P 500 data ---- #
 #
-@st.cache
+@st.cache_data
 def load_data():
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
     html = pd.read_html(url, header = 0)
@@ -32,6 +35,7 @@ df = load_data()
 sector = df.groupby('GICS Sector')
 
 
+
 # ---- Sidebar ----
 
 # Stock selection
@@ -39,11 +43,11 @@ sorted_stock_unique = sorted( df['Symbol'].unique() )
 selected_stock = st.sidebar.selectbox('Stock', sorted_stock_unique)
 
 # Period selection
-selected_period = st.sidebar.radio('Select Period', ('1mo','3mo', '6mo', '1y', '5y', '10y', 'YTD','Max'))
+selected_period = st.sidebar.selectbox('Select Period', ('1mo','3mo', '6mo', '1y', '5y', '10y', 'YTD','Max'))
 
-# Sector selection
-sorted_sector_unique = sorted( df['GICS Sector'].unique() )
-selected_sector = st.sidebar.multiselect('Sector', sorted_sector_unique, sorted_sector_unique)
+# Sector selection (LEGACY CODE)
+# sorted_sector_unique = sorted( df['GICS Sector'].unique() )
+# selected_sector = st.sidebar.multiselect('Sector', sorted_sector_unique, sorted_sector_unique)
 
 
 
@@ -52,87 +56,112 @@ st.header('Individual Stocks')
 
 st.write(f"Selected ticker: **{selected_stock}**")
 
+# define historical stock df
 history = yf.Ticker(selected_stock).history(period=selected_period)
+history_reversed = history.iloc[::-1] # Reverse the DataFrame
+
+
+# ---- Calculate Price Changes ----- #
+
+# Calculate Close Price Change
+if len(history) >= 2:
+    close_change = ((history['Close'].iloc[-1] - history['Close'].iloc[-2]) / history['Close'].iloc[-2]) * 100
+else:
+    close_change = 0  # Default to 0 if not enough data
+
+# Calculate Daily Change
+if len(history) >= 1:
+    daily_change = (history['Close'].iloc[-1] - history['Open'].iloc[-1])
+else:
+    daily_change = 0  # Default to 0 if not enough data
+
+# Calculate Period-to-Date Change
+if len(history) >= 1:
+    start_price = history['Close'].iloc[0]  # First day closing price in the selected period
+    end_price = history['Close'].iloc[-1]   # Most recent day closing price
+    ptd = (end_price - start_price)
+else:
+    ptd = 0  # Default to 0 if not enough data
+
+# Calculate Period-to-Date Percent Change
+if len(history) >= 1:
+    start_price = history['Close'].iloc[0]  # First day closing price in the selected period
+    end_price = history['Close'].iloc[-1]   # Most recent day closing price
+    ptd_change = ((end_price - start_price) / start_price) * 100
+else:
+    ptd_change = 0  # Default to 0 if not enough data
+
+# ---- KPI Cards ---- # 
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Close", history['Close'].tail(1).apply(lambda x: float("{:.2f}".format(x)), "+5%"))
-col2.metric("Daily Change", history['Close'].tail(1) - history['Open'].tail(1), "-8%")
-col3.metric("YTD", value = 123, delta = "+5%")
+col1.metric("Latest Close", f"${history['Close'].iloc[-1]:.2f}")
+col2.metric("Daily Change", f"{daily_change:.2f}", f"{close_change:.2f}%")
+col3.metric(f"Period Change ({selected_period})", f"{ptd:.2f}", f"{ptd_change:.2f}%")
 
-#df.max()
+style_metric_cards(border_color = '#CCC',
+                   border_left_color = '#AA0000')
 
-tab1, tab2 = st.tabs(["📈 Chart", "🗃 Data"])
+
+# ---- Tabs ---- #
+tab1, tab2, tab3 = st.tabs(["📈 Charts", "🗃 Table", "📰 S&P 500 Lookup"])
 
 ticker = selected_stock
 
-# stock plot
-tab1.subheader("Stock Chart")
-st.text('Stock performance over given period selected on the left.')
-mpf.plot(history, type='candle', mav=(7),figratio=(18,10))
 
-# selected stock table
-tab2.subheader("Data Table")
-st.write(history) #last 10 days
-st.caption('Pro Tip: you can copy and paste cells from the above table into your favorite spreadsheet software.')
+# ---- Stock Chart ----
 
+with tab1:
+    tab1.subheader("Stock Chart")
+    st.text('Stock performance over given period selected on the left.')
+    
+    # Creating the candlestick chart
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+               vertical_spacing=0.03, subplot_titles=('', ''), 
+               row_width=[0.2, 0.7])
 
-"---"
+    # Candlestick chart
+    fig.add_trace(go.Candlestick(x=history.index,
+                    open=history['Open'],
+                    high=history['High'],
+                    low=history['Low'],
+                    close=history['Close'],
+                                  showlegend = False), 
+                                  row=1, col=1)
 
-# Filtering data for selected section
-df_selected_sector = df[ (df['GICS Sector'].isin(selected_sector)) ]
+        # Determine the color for each bar
+    colors = ['#00B39D' if close >= open else '#D50000' for open, close in zip(history['Open'], history['Close'])]
 
-st.header('Sector Analysis')
-st.text('Choose a single sector or multiple from the options on the left. Choose Show Plot below to display stock charts.')
-st.write('Data Dimension: ' + str(df_selected_sector.shape[0]) + ' rows and ' + str(df_selected_sector.shape[1]) + ' columns.')
-st.dataframe(df_selected_sector)
-
-# Download S&P500 data
-# https://discuss.streamlit.io/t/how-to-download-file-in-streamlit/1806
-def filedownload(df):
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
-    href = f'<a href="data:file/csv;base64,{b64}" download="SP500.csv">Download CSV File</a>'
-    return href
-
-st.markdown(filedownload(df_selected_sector), unsafe_allow_html=True)
+    # Volume bar chart with conditional coloring
+    fig.add_trace(go.Bar(x=history.index, y=history['Volume'], marker_color=colors, showlegend=False), row=2, col=1)
 
 
-# https://pypi.org/project/yfinance/
-
-# the following retrieves data from yfinance package and groups by ticker symbol
-
-data = yf.download(
-        tickers = list(df_selected_sector[:5].Symbol),
-        period = selected_period,
-        interval = "1d",
-        group_by = 'ticker',
-        auto_adjust = True,
-        prepost = True,
-        threads = True,
-        proxy = None
+    # Update layout
+    fig.update_layout(
+        title=f'Stock Data for {selected_stock}',
+        xaxis_title='',
+        yaxis_title='Price ($)',
+        xaxis_rangeslider_visible=False
     )
 
-# Plot Closing Price of Query Symbol
+    # Update y-axis labels
+    fig.update_yaxes(title_text="Price", row=1, col=1)
+    fig.update_yaxes(title_text="Volume", row=2, col=1)
 
-plt.style.use('fivethirtyeight')
+    st.plotly_chart(fig, use_container_width=True)
 
-def price_plot(symbol):
-  df = pd.DataFrame(data[symbol].Close)
-  df['Date'] = df.index
-  fig = plt.figure()
-  plt.fill_between(df.Date, df.Close, color='#00F43C', alpha=0.3)
-  plt.plot(df.Date, df.Close, color='#00F43C', alpha=0.8)
-  plt.xticks(rotation=90)
-  plt.title(symbol, fontweight='bold')
-  plt.xlabel('Date', fontweight='bold')
-  plt.ylabel('Closing Price', fontweight='bold')
-  return st.pyplot(fig)
+# ---- Stock Table ----
+    
+with tab2:
+    tab2.subheader("Data Table")
+    st.write(history_reversed) 
+    st.caption('Pro Tip: you can copy and paste cells from the above table into your favorite spreadsheet software.')
 
-num_company = st.sidebar.slider('No. of companies to show', 1, 5)
 
-if st.button('Show Plots'):
-    st.header('Stock Closing Price')
-    for i in list(df_selected_sector.Symbol)[:num_company]:
-        price_plot(i)
+# ---- Lookup Table ---- #
 
+with tab3:
+    tab3.subheader("Look up stocks in the S&P 500 Index")
+    st.write(df)
+
+"---"
 
