@@ -39,8 +39,12 @@ sector = df.groupby('GICS Sector')
 # ---- Sidebar ----
 
 # Stock selection
-sorted_stock_unique = sorted( df['Symbol'].unique() )
-selected_stock = st.sidebar.selectbox('Stock', sorted_stock_unique)
+sorted_stock_unique = sorted(df['Symbol'].unique())
+default_stock = "NVDA" # Set a default stock symbol
+
+# Check if the default stock is in the list, otherwise default to the first stock
+default_index = sorted_stock_unique.index(default_stock) if default_stock in sorted_stock_unique else 0
+selected_stock = st.sidebar.selectbox('Stock', sorted_stock_unique, index=default_index) # Use st.sidebar.selectbox to create a dropdown with a default value
 
 # Period selection
 selected_period = st.sidebar.selectbox('Select Period', ('1mo','3mo', '6mo', '1y', '5y', '10y', 'YTD','Max'))
