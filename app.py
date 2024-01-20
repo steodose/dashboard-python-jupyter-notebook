@@ -113,41 +113,75 @@ ticker = selected_stock
 with tab1:
     tab1.subheader("Stock Chart")
     st.text('Stock performance over given period selected on the left.')
+
+    # Chart selection radio button
+    chart_type = st.radio("Choose Chart Type", ('Candlestick', 'Line Chart'))
     
-    # Creating the candlestick chart
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-               vertical_spacing=0.03, subplot_titles=('', ''), 
-               row_width=[0.2, 0.7])
+    if chart_type == 'Candlestick':
+        # Creating the candlestick chart
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                vertical_spacing=0.03, subplot_titles=('', ''), 
+                row_width=[0.2, 0.7])
 
-    # Candlestick chart
-    fig.add_trace(go.Candlestick(x=history.index,
-                    open=history['Open'],
-                    high=history['High'],
-                    low=history['Low'],
-                    close=history['Close'],
-                                  showlegend = False), 
-                                  row=1, col=1)
+        # Candlestick chart
+        fig.add_trace(go.Candlestick(x=history.index,
+                        open=history['Open'],
+                        high=history['High'],
+                        low=history['Low'],
+                        close=history['Close'],
+                                    showlegend = False), 
+                                    row=1, col=1)
 
-        # Determine the color for each bar
-    colors = ['#00B39D' if close >= open else '#D50000' for open, close in zip(history['Open'], history['Close'])]
+            # Determine the color for each bar
+        colors = ['#00B39D' if close >= open else '#D50000' for open, close in zip(history['Open'], history['Close'])]
 
-    # Volume bar chart with conditional coloring
-    fig.add_trace(go.Bar(x=history.index, y=history['Volume'], marker_color=colors, showlegend=False), row=2, col=1)
+        # Volume bar chart with conditional coloring
+        fig.add_trace(go.Bar(x=history.index, y=history['Volume'], marker_color=colors, showlegend=False), row=2, col=1)
+
+        # Update layout
+        fig.update_layout(
+            title=f'Stock Data for {selected_stock}',
+            xaxis_title='',
+            yaxis_title='Price ($)',
+            xaxis_rangeslider_visible=False
+        )
+
+        # Update y-axis labels
+        fig.update_yaxes(title_text="Price", row=1, col=1)
+        fig.update_yaxes(title_text="Volume", row=2, col=1)
+
+        st.plotly_chart(fig, use_container_width=True)
 
 
-    # Update layout
-    fig.update_layout(
-        title=f'Stock Data for {selected_stock}',
-        xaxis_title='',
-        yaxis_title='Price ($)',
-        xaxis_rangeslider_visible=False
-    )
+    elif chart_type == 'Line Chart':
+        # Determine the stock's performance
+        is_positive = history['Close'].iloc[-1] >= history['Close'].iloc[0]
 
-    # Update y-axis labels
-    fig.update_yaxes(title_text="Price", row=1, col=1)
-    fig.update_yaxes(title_text="Volume", row=2, col=1)
+        # Set the gradient color based on performance
+        gradient_color = 'rgba(0, 179, 157, {})'
+        if not is_positive:
+            gradient_color = 'rgba(213, 0, 0, {})'
 
-    st.plotly_chart(fig, use_container_width=True)
+        # Creating the line chart
+        line_fig = go.Figure()
+
+        # Adding the line plot
+        line_fig.add_trace(go.Scatter(x=history.index, y=history['Close'], mode='lines', name='Close', line=dict(color=gradient_color.format(1))))
+
+        # Adding gradient area under the line
+        line_fig.add_trace(go.Scatter(x=history.index, y=history['Close'], mode='none', 
+                                    fill='tozeroy', 
+                                    fillcolor=gradient_color.format(0.2),  # Adjust transparency for gradient effect
+                                    name='Area'))
+
+        # Update layout
+        line_fig.update_layout(title=f'Historical Stock Prices for {selected_stock}',
+                            xaxis_title='Date',
+                            yaxis_title='Price ($)',
+                            showlegend=False)
+
+        st.plotly_chart(line_fig, use_container_width=True)
+
 
 # ---- Stock Table ----
     
